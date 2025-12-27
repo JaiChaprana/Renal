@@ -21,6 +21,9 @@
 html,
 body {
   @apply bg-white;
+  &::-webkit-scrollbar {
+        display: none;
+    }
 }
 
 main {
