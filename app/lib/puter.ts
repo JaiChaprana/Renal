@@ -1,5 +1,9 @@
 import { create } from "zustand";
 
+// Model picked via Puter chat options.model. [web:73]
+// You can swap this to any model returned by puter.ai.listModels(). [web:67]
+const DEFAULT_AI_MODEL = "anthropic/claude-sonnet-4"; // [web:67]
+
 declare global {
   interface Window {
     puter: {
@@ -321,12 +325,12 @@ export const usePuterStore = create<PuterStore>((set, get) => {
       setError("Puter.js not available");
       return;
     }
-    // return puter.ai.chat(prompt, imageURL, testMode, options);
     return puter.ai.chat(prompt, imageURL, testMode, options) as Promise<
       AIResponse | undefined
     >;
   };
 
+  // ✅ CHANGED HERE: use a better model via options.model. [web:73]
   const feedback = async (path: string, message: string) => {
     const puter = getPuter();
     if (!puter) {
@@ -339,18 +343,14 @@ export const usePuterStore = create<PuterStore>((set, get) => {
         {
           role: "user",
           content: [
-            {
-              type: "file",
-              puter_path: path,
-            },
-            {
-              type: "text",
-              text: message,
-            },
+            { type: "file", puter_path: path },
+            { type: "text", text: message },
           ],
         },
       ],
-      { model: "claude-sonnet-4" }
+      {
+        model: DEFAULT_AI_MODEL,
+      }
     ) as Promise<AIResponse | undefined>;
   };
 
