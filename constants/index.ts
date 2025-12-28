@@ -6,7 +6,7 @@ export const resumes: Resume[] = [
     imagePath: "/images/resume-1.png",
     resumePath: "/resumes/resume-1.pdf",
     feedback: {
-      overallScore: 85,
+      overall_rating: 85,
       ATS: {
         score: 90,
         tips: [],
@@ -36,7 +36,7 @@ export const resumes: Resume[] = [
     imagePath: "/images/resume-2.png",
     resumePath: "/resumes/resume-2.pdf",
     feedback: {
-      overallScore: 55,
+      overall_rating: 55,
       ATS: {
         score: 90,
         tips: [],
@@ -66,7 +66,7 @@ export const resumes: Resume[] = [
     imagePath: "/images/resume-3.png",
     resumePath: "/resumes/resume-3.pdf",
     feedback: {
-      overallScore: 75,
+      overall_rating: 75,
       ATS: {
         score: 90,
         tips: [],
@@ -93,7 +93,7 @@ export const resumes: Resume[] = [
 
 export const AIResponseFormat = `
       interface Feedback {
-      overallScore: number; //max 100
+      overall_rating: number; //max 100
       ATS: {
         score: number; //rate based on ATS suitability
         tips: {
