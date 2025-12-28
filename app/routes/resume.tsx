@@ -29,6 +29,14 @@ const clamp0to100 = (n: unknown) => {
   return Number.isFinite(x) ? Math.max(0, Math.min(100, x)) : 0;
 };
 
+const asStringArray = (v: any): string[] =>
+  Array.isArray(v)
+    ? v
+        .filter((x) => typeof x === "string")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
 const extractJsonFromText = (text: string): any | null => {
   const first = text.indexOf("{");
   const last = text.lastIndexOf("}");
@@ -40,99 +48,71 @@ const extractJsonFromText = (text: string): any | null => {
   }
 };
 
-const asArray = (v: any) => (Array.isArray(v) ? v : []);
-
-const normalizeTips = (tips: any): Tip[] => {
-  const arr = asArray(tips);
-  return arr
-    .map((t: any) => ({
-      type: t?.type === "good" ? "good" : "improve",
-      tip: typeof t?.tip === "string" ? t.tip : typeof t === "string" ? t : "",
-      explanation:
-        typeof t?.explanation === "string" ? t.explanation : undefined,
-    }))
-    .filter((t: Tip) => t.tip.trim().length > 0);
-};
-
-const normalizeCategory = (obj: any): { score?: number; tips?: Tip[] } => {
-  const score =
-    obj?.score ??
-    obj?.rating ??
-    obj?.value ??
-    obj?.points ??
-    obj?.outOf100 ??
-    obj?.out_of_100 ??
-    obj?.out_of_100_score;
-
-  const tips = obj?.tips ?? obj?.suggestions ?? obj?.feedback ?? obj?.items;
-  return { score: clamp0to100(score), tips: normalizeTips(tips) };
-};
-
 const normalizeFeedbackToUi = (input: unknown): UiFeedback | null => {
   let raw: any = input;
-
   if (!raw) return null;
 
   if (typeof raw === "string") {
-    const parsedDirect = (() => {
+    const direct = (() => {
       try {
         return JSON.parse(raw);
       } catch {
         return null;
       }
     })();
-
-    raw = parsedDirect ?? extractJsonFromText(raw) ?? { rawText: raw };
+    raw = direct ?? extractJsonFromText(raw) ?? { rawText: raw };
   }
 
-  const tone = normalizeCategory(
-    raw?.toneAndStyle ?? raw?.tone_style ?? raw?.tone ?? raw?.style
+  const overall = clamp0to100(
+    raw?.overall_rating ?? raw?.overallScore ?? raw?.score ?? 0
   );
-  const content = normalizeCategory(raw?.content);
-  const structure = normalizeCategory(raw?.structure ?? raw?.format);
-  const skills = normalizeCategory(raw?.skills ?? raw?.skill);
 
-  const overall =
-    raw?.overall_rating ??
-    raw?.overallScore ??
-    raw?.overall?.score ??
-    raw?.score ??
-    raw?.atsScore ??
-    (() => {
-      const vals = [
-        tone.score,
-        content.score,
-        structure.score,
-        skills.score,
-      ].map(clamp0to100);
-      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-      return Math.round(avg * 10) / 10;
-    })();
+  const atsScore = clamp0to100(
+    raw?.ats_compatibility ??
+      raw?.ats?.score ??
+      raw?.atsScore ??
+      raw?.ats_score ??
+      0
+  );
 
-  const atsScore =
-    raw?.ats?.score ??
-    raw?.atsScore ??
-    raw?.ats_score ??
-    raw?.ats ??
-    raw?.scores?.ats;
+  const atsSuggestions = asStringArray(raw?.ats_issues).map((tip) => ({
+    type: "improve" as const,
+    tip,
+  }));
 
-  const atsSuggestions = asArray(
-    raw?.ats?.suggestions ?? raw?.atsSuggestions ?? raw?.ats_tips
-  ).map((s: any) => ({
-    type: s?.type === "good" ? "good" : "improve",
-    tip: typeof s?.tip === "string" ? s.tip : typeof s === "string" ? s : "",
+  const strengths = asStringArray(raw?.strengths).map((tip) => ({
+    type: "good" as const,
+    tip,
+    explanation: "",
+  }));
+
+  const weaknesses = asStringArray(raw?.weaknesses).map((tip) => ({
+    type: "improve" as const,
+    tip,
+    explanation: "",
+  }));
+
+  const improvements = asStringArray(
+    raw?.specific_improvements ?? raw?.recommendations
+  ).map((tip) => ({
+    type: "improve" as const,
+    tip,
+    explanation: "",
+  }));
+
+  const missingKeywords = asStringArray(raw?.missing_keywords).map((kw) => ({
+    type: "improve" as const,
+    tip: `Add keyword: ${kw}`,
+    explanation: "",
   }));
 
   return {
-    overall_rating: clamp0to100(overall),
-    ats: {
-      score: clamp0to100(atsScore),
-      suggestions: atsSuggestions.filter((s: any) => s.tip),
-    },
-    toneAndStyle: tone,
-    content,
-    structure,
-    skills,
+    overall_rating: overall,
+    ats: { score: atsScore, suggestions: atsSuggestions },
+    toneAndStyle: { score: 0, tips: [] },
+    structure: { score: 0, tips: [] },
+    content: { score: 0, tips: [...strengths, ...weaknesses, ...improvements] },
+    skills: { score: 0, tips: missingKeywords },
   };
 };
 
@@ -205,7 +185,7 @@ const Resume = () => {
         <>
           <Summary feedback={feedback as any} />
           <ATS
-            score={feedback.ats?.score ?? feedback.overall_rating}
+            score={feedback.ats?.score ?? 0}
             suggestions={feedback.ats?.suggestions ?? []}
           />
           <Details feedback={feedback as any} />

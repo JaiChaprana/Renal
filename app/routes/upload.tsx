@@ -17,6 +17,17 @@ type ResumeKV = {
   feedback: unknown;
 };
 
+const extractJsonFromText = (text: string) => {
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  if (first === -1 || last === -1 || last <= first) return null;
+  try {
+    return JSON.parse(text.slice(first, last + 1));
+  } catch {
+    return null;
+  }
+};
+
 const Upload = () => {
   const { auth, fs, ai, kv, puterReady } = usePuterStore();
   const navigate = useNavigate();
@@ -107,12 +118,7 @@ const Upload = () => {
         prepareInstructions({ jobTitle, jobDescription })
       );
 
-      if (!feedback?.message?.content) {
-        setStatusText("Error: Failed to analyze resume");
-        return;
-      }
-
-      const content = feedback.message.content;
+      const content = feedback?.message?.content;
       const feedbackText =
         typeof content === "string"
           ? content
@@ -127,11 +133,11 @@ const Upload = () => {
         return;
       }
 
-      let parsed: unknown = feedbackText;
+      let parsed: unknown;
       try {
         parsed = JSON.parse(feedbackText);
       } catch {
-        parsed = feedbackText;
+        parsed = extractJsonFromText(feedbackText) ?? { rawText: feedbackText };
       }
 
       data.feedback = parsed;
@@ -155,7 +161,6 @@ const Upload = () => {
     const jobDescription = (formData.get("job-description") as string) || "";
 
     if (!file) return;
-
     void handleAnalyze({ companyName, jobTitle, jobDescription, file });
   };
 
